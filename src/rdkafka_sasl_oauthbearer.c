@@ -352,8 +352,9 @@ rd_kafka_oauthbearer_set_token0 (rd_kafka_t *rk,
         rk->rk_oauthbearer->wts_md_lifetime = wts_md_lifetime;
 
         /* Schedule a refresh 80% through its remaining lifetime */
-        rk->rk_oauthbearer->wts_refresh_after = now_wallclock + 0.8 *
-                (wts_md_lifetime - now_wallclock);
+        rk->rk_oauthbearer->wts_refresh_after =
+                (rd_ts_t)(now_wallclock + 0.8 *
+                          (wts_md_lifetime - now_wallclock));
 
         rd_list_clear(&rk->rk_oauthbearer->extensions);
         for (i = 0; i + 1 < extension_size; i += 2)
@@ -601,7 +602,7 @@ parse_ujws_config (const char *cfg,
                                         r = -1;
                                 } else {
                                         parsed->life_seconds =
-                                                life_seconds_long;
+                                                (int)life_seconds_long;
                                 }
                         }
 
@@ -708,15 +709,16 @@ static char *create_jws_compact_serialization (
                                             rd_strdup(start));
 
                         if (scope_json_length == 0) {
-                                scope_json_length = 2 + // ,"
+                                scope_json_length = (int)(
+                                        2 + // ,"
                                         strlen(parsed->scope_claim_name) +
                                         4 +             // ":["
                                         strlen(start) +
                                         1 +             // "
-                                        1;              // ]
+                                        1);             // ]
                         } else {
                                 scope_json_length += 2; // ,"
-                                scope_json_length += strlen(start);
+                                scope_json_length += (int)strlen(start);
                                 scope_json_length += 1; // "
                         }
 
@@ -727,7 +729,8 @@ static char *create_jws_compact_serialization (
         now_wallclock_seconds = now_wallclock / 1000000.0;
 
         /* Generate json */
-        max_json_length = 2 + // {"
+        max_json_length = (int)(
+                2 + // {"
                 strlen(parsed->principal_claim_name) +
                 3 +   // ":"
                 strlen(parsed->principal) +
@@ -736,7 +739,7 @@ static char *create_jws_compact_serialization (
                 7 +   // ,"exp":
                 14 +  // exp NumericDate (e.g. 1549252067.546)
                 scope_json_length +
-                1;    // }
+                1);   // }
 
         /* Generate scope portion of json */
         scope_json = rd_malloc(scope_json_length + 1);
@@ -777,7 +780,7 @@ static char *create_jws_compact_serialization (
         jws_claims = retval_jws + strlen(retval_jws);
         encode_len = EVP_EncodeBlock((uint8_t *)jws_claims,
                                      (uint8_t *)claims_json,
-                                     strlen(claims_json));
+                                     (int)strlen(claims_json));
         rd_free(claims_json);
         jws_last_char = jws_claims + encode_len - 1;
 
@@ -1002,7 +1005,7 @@ rd_kafka_sasl_oauthbearer_build_client_first_message (
 
         static const char *gs2_header = "n,,";
         static const char *kvsep = "\x01";
-        const int kvsep_size = strlen(kvsep);
+        const int kvsep_size = (int)strlen(kvsep);
         int extension_size = 0;
         int i;
         char *buf;
@@ -1012,8 +1015,9 @@ rd_kafka_sasl_oauthbearer_build_client_first_message (
         for (i = 0 ; i < rd_list_cnt(&state->extensions) ; i++) {
                 rd_strtup_t *extension = rd_list_elem(&state->extensions, i);
                 // kvpair         = key "=" value kvsep
-                extension_size += strlen(extension->name) + 1 // "="
-                        + strlen(extension->value) + kvsep_size;
+                extension_size += (int)(
+                        strlen(extension->name) + 1 // "="
+                        + strlen(extension->value) + kvsep_size);
         }
 
         // client-resp    = (gs2-header kvsep *kvpair kvsep) / kvsep
